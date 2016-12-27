@@ -1,5 +1,8 @@
 package Klient;
 
+import Klient.gui.ConversationPanel;
+import Klient.gui.UsersListPanel;
+
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -8,8 +11,13 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
 
 /**
  * Created by Nogaz on 24.11.2016.
@@ -25,11 +33,16 @@ public class Klient {
     JTextArea receivedMessages;
     JTextArea wiadomosc;
 
+
     PrintWriter writer;
     BufferedReader reader;
     Socket socket;
 
+    SocketChannel socketChannel;
+    ByteBuffer messageBuffer;
 
+    String lastReceivedMessage = "";
+    String lastSentMessage = "";
     public void startClient(){
 
 
@@ -42,6 +55,20 @@ public class Klient {
     }
 
     public void configureCommunication(){
+        try {
+            socketChannel = SocketChannel.open();
+            socketChannel.configureBlocking(false);
+            socketChannel.connect(new InetSocketAddress(adresLocalhost, portSerwera));
+
+            messageBuffer = ByteBuffer.allocate(1024);
+
+            while( ! socketChannel.finishConnect() ){
+
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        /*
         try{
             socket = new Socket(adresLocalhost, portSerwera);
             InputStreamReader readerStream = new InputStreamReader(socket.getInputStream());
@@ -53,35 +80,11 @@ public class Klient {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        */
     }
 
 
-    public class wyslijButtonListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            try{
-                writer.println(wiadomosc.getText());
-                writer.flush();
-            }catch (Exception ex){
-                ex.printStackTrace();
-            }
-            wiadomosc.setText("");
-            wiadomosc.requestFocus();
-        }
-    }
 
-    private class ClearConversationButton implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            receivedMessages.setText("");
-        }
-    }
-    private class exitConversationListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            ramka.dispatchEvent(new WindowEvent(ramka, WindowEvent.WINDOW_CLOSING));
-        }
-    }
 
     public static void main(String[] args){
 
@@ -102,15 +105,41 @@ public class Klient {
             }
         }
     }
+    public String readMessage(){
+        return "";
+    }
 
     public void setupGUI(){
         ramka = new JFrame("PituPitu");
-        ramka.setSize(450,800);
+        ramka.setSize(600,900);
         ramka.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        JSplitPane panelAplikacji = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+
+        //PRAWA     -->>    USERS LIST
+        UsersListPanel usersListPanel = new UsersListPanel();
+
+        //LEWA      -->>    KONWERSACJA
+        JTabbedPane conversationsPanel = new JTabbedPane();
+
+        ConversationPanel mainConversationPanel = new ConversationPanel();
+        conversationsPanel.addTab("Main room", mainConversationPanel);
+
+        ConversationPanel mainConversationPanel1 = new ConversationPanel();
+        conversationsPanel.addTab("#1 room", mainConversationPanel1);
+
+
+
+        panelAplikacji.add(conversationsPanel);
+        panelAplikacji.add(usersListPanel);
+        panelAplikacji.setLeftComponent(conversationsPanel);
+        panelAplikacji.setRightComponent(usersListPanel);
+        panelAplikacji.setDividerLocation(0.8);
+
 
         //podzielony kontener
         //GORA -->> konwersacja
         //DOL  -->> nadawanie wiadomosci
+        /*
         JSplitPane panelGlowny = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
 
         receivedMessages = new JTextArea(40,4);
@@ -149,11 +178,27 @@ public class Klient {
         panelGlowny.setTopComponent(conversationPanel);
         panelGlowny.setBottomComponent(sendingPanel);
         panelGlowny.setDividerLocation(0.5);
-
-        ramka.getContentPane().add(panelGlowny);
+*/
+        ramka.getContentPane().add(panelAplikacji);
         ramka.setVisible(true);
     }
 
-
+    public void clearChatWindow(){
+        this.receivedMessages.setText("");
+    }
+    public String getLastReceivedMessage(){
+        return this.lastReceivedMessage;
+    }
+    public String getLastSentMessage(){
+        return this.lastSentMessage;
+    }
+    public void sendMessage(String message){
+        this.writer.println(message);
+        this.writer.flush();
+    }
+    public void clearSendMessagePanel(){
+        wiadomosc.setText("");
+        wiadomosc.requestFocus();
+    }
 
 }

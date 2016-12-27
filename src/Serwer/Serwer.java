@@ -4,8 +4,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.channels.ServerSocketChannel;
 import java.util.ArrayList;
 import java.util.Iterator;
 
@@ -16,59 +18,31 @@ public class Serwer {
 
     int serverPortNumber = 12345;
 
+    BufferedReader reader;
+    ServerSocketChannel serverSocketChannel;
+
     ArrayList outputStreams;
-    public class ClientService implements Runnable{
 
-        BufferedReader reader;
-        Socket socket;
-
-        public ClientService(Socket clientSocket){
-            try{
-                socket = clientSocket;
-                InputStreamReader isReader = new InputStreamReader(socket.getInputStream());
-                reader = new BufferedReader(isReader);
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        @Override
-        public void run() {
-            String wiadomosc;
-            try{
-                while( (wiadomosc = reader.readLine()) != null ){
-                    System.out.println("Received: " + wiadomosc);
-                    sendToEveryone(wiadomosc);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
 
     public static void main(String[] args){
-        new Serwer().doRoboty();
+        new Serwer().setUpServer();
     }
 
-    public void doRoboty(){
+    public void setUpServer(){
         outputStreams = new ArrayList();
-        try{
-            ServerSocket serverSocket = new ServerSocket(serverPortNumber);
 
-            while(true){
+        try {
+            serverSocketChannel = ServerSocketChannel.open();
+            serverSocketChannel.socket().bind( new InetSocketAddress(serverPortNumber) );
+            serverSocketChannel.configureBlocking(false);
 
-                Socket clientSocket = serverSocket.accept();
-                PrintWriter writer = new PrintWriter(clientSocket.getOutputStream());
-                outputStreams.add(writer);
-
-                Thread t = new Thread(new ClientService(clientSocket));
-                t.start();
-                System.out.println("Mamy połączenie");
+            while( true ){
+                serverSocketChannel.accept();
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 
     public void sendToEveryone(String message){
