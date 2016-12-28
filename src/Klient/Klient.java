@@ -33,6 +33,9 @@ public class Klient {
     JTextArea receivedMessages;
     JTextArea wiadomosc;
 
+    UsersListPanel usersListPanel;
+    JTabbedPane conversationsTabbedPanel;
+
 
     PrintWriter writer;
     BufferedReader reader;
@@ -91,6 +94,8 @@ public class Klient {
         new Klient().startClient();
     }
 
+
+
     private class MessagesReceiver implements Runnable {
         @Override
         public void run() {
@@ -116,22 +121,21 @@ public class Klient {
         JSplitPane panelAplikacji = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
 
         //PRAWA     -->>    USERS LIST
-        UsersListPanel usersListPanel = new UsersListPanel();
+        usersListPanel = new UsersListPanel();
 
         //LEWA      -->>    KONWERSACJA
-        JTabbedPane conversationsPanel = new JTabbedPane();
+        conversationsTabbedPanel = new JTabbedPane();
 
         ConversationPanel mainConversationPanel = new ConversationPanel();
-        conversationsPanel.addTab("Main room", mainConversationPanel);
-
+        conversationsTabbedPanel.addTab("Main room", mainConversationPanel);
+/*
         ConversationPanel mainConversationPanel1 = new ConversationPanel();
-        conversationsPanel.addTab("#1 room", mainConversationPanel1);
-
-
-
-        panelAplikacji.add(conversationsPanel);
+        conversationsTabbedPanel.addTab("#1 room", mainConversationPanel1);
+*/
+        usersListPanel.registerStartConversateListener(new StartConversationListener());
+        panelAplikacji.add(conversationsTabbedPanel);
         panelAplikacji.add(usersListPanel);
-        panelAplikacji.setLeftComponent(conversationsPanel);
+        panelAplikacji.setLeftComponent(conversationsTabbedPanel);
         panelAplikacji.setRightComponent(usersListPanel);
         panelAplikacji.setDividerLocation(0.8);
 
@@ -200,5 +204,25 @@ public class Klient {
         wiadomosc.setText("");
         wiadomosc.requestFocus();
     }
+
+    public void addNewConversationTab(){
+        int howMuchTabs = conversationsTabbedPanel.getTabCount();
+        if( howMuchTabs <= 0 ) {
+            ConversationPanel mainConversationPanel = new ConversationPanel();
+            conversationsTabbedPanel.addTab("Main room", mainConversationPanel);
+        }else{
+            ConversationPanel mainConversationPanel = new ConversationPanel();
+            conversationsTabbedPanel.addTab("#"+howMuchTabs, mainConversationPanel);
+        }
+    }
+
+    private class StartConversationListener implements ActionListener{
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            addNewConversationTab();
+        }
+    }
+
 
 }
