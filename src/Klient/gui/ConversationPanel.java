@@ -3,19 +3,18 @@ package Klient.gui;
 import Klient.Klient;
 
 import javax.swing.*;
-import javax.swing.event.MouseInputListener;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.MouseListener;
-import java.awt.event.WindowEvent;
 import java.nio.ByteBuffer;
-import java.util.EventListener;
 
 /**
  * Created by Nogaz on 27.12.2016.
  */
 public class ConversationPanel extends JPanel {
+    private final JTabbedPane parentJTabbedPane;
+
+
     JTextArea receivedMessages;
     JTextArea wiadomosc;
 
@@ -25,10 +24,11 @@ public class ConversationPanel extends JPanel {
     String lastSentMessage = "";
 
 
-    public ConversationPanel(){
+    public ConversationPanel(JTabbedPane parentJTabbedPane){
         super();
+        this.parentJTabbedPane = parentJTabbedPane;
         JSplitPane panelGlowny = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-        receivedMessages = new JTextArea(40,4);
+        receivedMessages = new JTextArea(40,80);
         receivedMessages.setLineWrap(true);
         receivedMessages.setWrapStyleWord(true);
         receivedMessages.setEditable(false);
@@ -38,7 +38,7 @@ public class ConversationPanel extends JPanel {
         conversationPanel.setAutoscrolls(true);
 
 
-        wiadomosc = new JTextArea(5,40);
+        wiadomosc = new JTextArea(5,80);
         wiadomosc.setLineWrap(true);
         JScrollPane sendMessageScroll = new JScrollPane(wiadomosc);
         sendMessageScroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
@@ -75,7 +75,9 @@ public class ConversationPanel extends JPanel {
     public class WyslijButtonListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
+            receivedMessages.append( wiadomosc.getText() + "\n");
             try{
+                /*
                 byte[] message = wiadomosc.getText().getBytes();
                 messageBuffer.clear();
                 messageBuffer.put(message);
@@ -85,7 +87,10 @@ public class ConversationPanel extends JPanel {
                 }
 
                 lastSentMessage = wiadomosc.getText();
+
+                receivedMessages.append(lastSentMessage);
                 //sendMessage(lastSentMessage);
+                */
             }catch (Exception ex){
                 ex.printStackTrace();
             }
@@ -104,7 +109,7 @@ public class ConversationPanel extends JPanel {
     private class ExitConversationListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
-            //ramka.dispatchEvent(new WindowEvent(ramka, WindowEvent.WINDOW_CLOSING));
+            removeConversation();
         }
     }
 
@@ -131,6 +136,19 @@ public class ConversationPanel extends JPanel {
     public void clearSendMessagePanel(){
         wiadomosc.setText("");
         wiadomosc.requestFocus();
+    }
+    private void removeConversation(){
+        System.out.println(this.getName());
+
+        if( parentJTabbedPane.getTitleAt( parentJTabbedPane.indexOfComponent(this)).equals(Klient.MAIN_CHAT_NAME) ){
+            System.out.println("Can't remove Main chat window!");
+        }else{
+            parentJTabbedPane.remove(this);
+        }
+
+
+
+
     }
 
 }

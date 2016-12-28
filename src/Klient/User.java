@@ -43,6 +43,6 @@ public class User {
     }
     @Override
     public String toString(){
-        return "User name: " + this.userName + "(" + this.userIpAdress[0] + "." + this.userIpAdress[1] + "." + this.userIpAdress[2] + "." + this.userIpAdress[3] + ")";
+        return this.userName + "[" + this.userIpAdress[0] + "." + this.userIpAdress[1] + "." + this.userIpAdress[2] + "." + this.userIpAdress[3] + "]";
     }
 }

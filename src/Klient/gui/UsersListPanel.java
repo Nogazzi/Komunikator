@@ -56,4 +56,8 @@ public class UsersListPanel extends JPanel {
         }
         startConversationButton.addActionListener(listener);
     }
+
+    public User getSelectedUser(){
+        return listComponent.getSelectedValue();
+    }
 }
