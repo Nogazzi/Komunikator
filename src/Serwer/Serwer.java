@@ -1,6 +1,8 @@
 package Serwer;
 
 
+import Serwer.Users.User;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -11,6 +13,7 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -32,10 +35,13 @@ public class Serwer {
 
     private final int BUFFER_SIZE = 1024;
     private final String WELCOME_MESSAGE = "Welcome to PituPitu!\n";
+    public final static String OPEN_CHANNEL_NAME = "OPEN_CHANNEL";
     private final ByteBuffer WelcomeMessageBuffer = ByteBuffer.wrap(WELCOME_MESSAGE.getBytes());
 
 
     private ByteBuffer messageBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+
+    private HashSet<User> users;
 
 
     public static void main(String[] args){
@@ -53,11 +59,19 @@ public class Serwer {
             channelSelector  = Selector.open();
             serverSocketChannel.register(channelSelector, SelectionKey.OP_ACCEPT);
 
+            users = new HashSet<User>();
+            System.out.println("Users list created, contains: " + users.size() + " users");
+            System.out.println("Server started on port: " + serverPortNumber);
+/*
             SocketChannel openChannel = SocketChannel.open();
             openChannel.connect(new InetSocketAddress(adresIPSerwera, serverPortNumber));
             openChannel.configureBlocking(false);
+            User newUser = new User();
+            newUser.setNick("ADMIN");
+            newUser.setIpAddress(adresIPSerwera + ":" + serverPortNumber);
+            users.add(newUser);
             SelectionKey key = openChannel.register(channelSelector, SelectionKey.OP_READ);
-
+*/
             startWorking();
 
             serverSocketChannel.close();
@@ -76,7 +90,7 @@ public class Serwer {
         newChannel.configureBlocking(false);
 
 
-        SelectionKey key = newChannel.register(channelSelector, SelectionKey.OP_READ, new OpenChatData() );
+        SelectionKey key = newChannel.register(channelSelector, SelectionKey.OP_READ );
 
     }
     public void addConversationChannel(String user1, String user2) throws IOException {
@@ -104,7 +118,7 @@ public class Serwer {
 
     public void startWorking() throws IOException {
 
-        System.out.println("Server started on port: " + serverPortNumber);
+
 
 
 
@@ -129,9 +143,10 @@ public class Serwer {
                 }else if( key.isWritable() ){
                     handleWrite(key);
                 }
+                keyIterator.remove();
 
             }
-            keyIterator.remove();
+
 
         }
     }
@@ -139,19 +154,37 @@ public class Serwer {
 
 
     public void handleAccept(SelectionKey key) throws IOException {
+        //receive accept request
         SocketChannel socketChannel = ((ServerSocketChannel) key.channel()).accept();
         String address = socketChannel.socket().getInetAddress() + ":" + socketChannel.socket().getPort();
 
+        //create base client profile
+        User newUser = new User();
+        newUser.setIpAddress(address);
+        users.add(newUser);
+        setUserToOpenChannel(newUser);
+        System.out.println("\nAccepted connection from " + address);
+        //System.out.println("User: " + newUser.getNick() + " added to Users list");
+        System.out.println("Users list now contains " + users.size() + " users");
+
+        //configure channel and wire with user
         socketChannel.configureBlocking(false);
-        socketChannel.register(channelSelector, SelectionKey.OP_READ, address);
+        socketChannel.register(channelSelector, SelectionKey.OP_READ | SelectionKey.OP_WRITE, newUser);
+
+        //send welcome message and confirm connection
         socketChannel.write(WelcomeMessageBuffer);
-        System.out.println("Accepted connection from: " + address);
+        //System.out.println("Accepted connection from: " + newUser.toString());
     }
     public void handleConnect(SelectionKey key){
     }
     public void handleRead(SelectionKey key) throws IOException {
         SocketChannel socketChannel = (SocketChannel) key.channel();
         StringBuilder stringBuilder = new StringBuilder();
+        User sender = null;
+        if( key.attachment() instanceof User ){
+            sender = (User)key.attachment();
+            System.out.println("\nWiadomosc nadana przez: " + sender);
+        }
 
         messageBuffer.clear();
         int read = 0;
@@ -164,13 +197,16 @@ public class Serwer {
         }
         String message;
         if( read < 0 ){
-            message = key.attachment() + " left a chat\n";
+            message = ((User)key.attachment()).getNick() + " left a chat\n";
             socketChannel.close();
         }else{
-            message = key.attachment() + ": " + stringBuilder.toString();
+            message = stringBuilder.toString();
         }
-        System.out.println(message);
+        IncomingMessageHandler.handleIncomingMessage(message, key);
+        //System.out.println("mM:" + message);
         //sendBroadCast(message);
+
+        //jesli odczytana wiadomosc ma byc przeslana do innego uzytkownika to zapisujemy ja do kolejki wiadomosci odbiorcy
 
     }
 
@@ -186,12 +222,23 @@ public class Serwer {
     }
 
     public void handleWrite(SelectionKey key){
-
+        //wpisujemy do bufora kolejne bajty z kolejki wiadomosci rozpatrywanego odbiorcy
     }
     public void checkUsersActivity(){
-
+        //pingujemy uzytkownika
+        //jesli odpowiada to git, jesli nie to usuwamy go
     }
     public void setOneToOneCommunication(){
 
+    }
+    public void printUsersList(){
+        //wypisujemy liste aktywnych uzytkownikow
+    }
+    public void setUserToOpenChannel(User user){
+        user.joinToChannel(OPEN_CHANNEL_NAME);
+    }
+    public void quitUser(SelectionKey key){
+        users.remove((User)key.attachment());
+        key.cancel();
     }
 }
