@@ -34,20 +34,23 @@ public class Serwer {
     Selector channelSelector;
 
     private final int BUFFER_SIZE = 1024;
-    private final String WELCOME_MESSAGE = "Welcome to PituPitu!\n";
-    public final static String OPEN_CHANNEL_NAME = "OPEN_CHANNEL";
-    private final ByteBuffer WelcomeMessageBuffer = ByteBuffer.wrap(WELCOME_MESSAGE.getBytes());
+    public final static String WELCOME_MESSAGE_BASE = "Welcome to the Internet Relay Network";
+    public final static String OPEN_CHANNEL_NAME = "OpenChannel";
+    private ByteBuffer WelcomeMessageBuffer;
+    public static final String HOST_NAME = "PituPitu";
 
 
     private ByteBuffer messageBuffer = ByteBuffer.allocate(BUFFER_SIZE);
 
     private HashSet<User> users;
+    private HashSet<String> channels;
 
 
     public static void main(String[] args){
 
         new Serwer().setUpServer();
     }
+
 
     public void setUpServer(){
         outputStreams = new ArrayList();
@@ -60,6 +63,8 @@ public class Serwer {
             serverSocketChannel.register(channelSelector, SelectionKey.OP_ACCEPT);
 
             users = new HashSet<User>();
+            channels = new HashSet<String>();
+            setUpOpenChannel();
             System.out.println("Users list created, contains: " + users.size() + " users");
             System.out.println("Server started on port: " + serverPortNumber);
 /*
@@ -172,7 +177,9 @@ public class Serwer {
         socketChannel.register(channelSelector, SelectionKey.OP_READ | SelectionKey.OP_WRITE, newUser);
 
         //send welcome message and confirm connection
-        socketChannel.write(WelcomeMessageBuffer);
+
+        //socketChannel.write(WelcomeMessageBuffer);
+
         //System.out.println("Accepted connection from: " + newUser.toString());
     }
     public void handleConnect(SelectionKey key){
@@ -223,6 +230,26 @@ public class Serwer {
 
     public void handleWrite(SelectionKey key){
         //wpisujemy do bufora kolejne bajty z kolejki wiadomosci rozpatrywanego odbiorcy
+        User keyUser = (User)key.attachment();
+        SocketChannel channel = (SocketChannel)key.channel();
+        if( keyUser.remainMessage() ) {
+
+            ByteBuffer messageBuffer = ByteBuffer.allocate( BUFFER_SIZE );
+            messageBuffer.clear();
+            messageBuffer.put( keyUser.getRemainedMessage().getBytes() );
+            messageBuffer.flip();
+            System.out.println("ilosc wolnego miejsca w buforze wysylania: " + messageBuffer.remaining() );
+            try {
+                channel.write(messageBuffer);
+                //messageBuffer.rewind();
+                StringBuilder sb = new StringBuilder();
+                String message = new String(messageBuffer.array());
+                System.out.println("Message: \"" + message + "\" sent");
+                messageBuffer.clear();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
     public void checkUsersActivity(){
         //pingujemy uzytkownika
@@ -240,5 +267,16 @@ public class Serwer {
     public void quitUser(SelectionKey key){
         users.remove((User)key.attachment());
         key.cancel();
+    }
+    public void addUserToChannel(User user, String channel){
+        if( channels.contains( channel )){
+            user.joinToChannel(channel);
+        }else{
+            throw new NullPointerException();
+        }
+    }
+
+    private void setUpOpenChannel(){
+        this.channels.add(OPEN_CHANNEL_NAME);
     }
 }

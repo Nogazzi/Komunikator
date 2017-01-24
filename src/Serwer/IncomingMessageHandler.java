@@ -2,7 +2,11 @@ package Serwer;
 
 import Serwer.Users.User;
 
+import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
+
+import static Serwer.Serwer.OPEN_CHANNEL_NAME;
 
 /**
  * Created by Nogaz on 13.01.2017.
@@ -11,17 +15,18 @@ public class IncomingMessageHandler {
 
     public static final String USER = "USER";
     public static final String NICK = "NICK";
-    public static final String SERVER = "server";
-    public static final String SQUIT = "squit";
-    public static final String QUIT = "quit";
-    public static final String JOIN = "join";
-    public static final String PART = "part";
-    public static final String MODE = "mode";
-    public static final String TOPIC = "topic";
-    public static final String NAMES = "names";
-    public static final String LIST = "list";
-    public static final String INVITE = "invite";
-    public static final String KICK = "kick";
+    public static final String SERVER = "SERVER";
+    public static final String SQUIT = "SQUIT";
+    public static final String QUIT = "QUIT";
+    public static final String JOIN = "JOIN";
+    public static final String PART = "PART";
+    public static final String MODE = "MODE";
+    public static final String TOPIC = "TOPIC";
+    public static final String NAMES = "NAMES";
+    public static final String LIST = "LIST";
+    public static final String INVITE = "INVITE";
+    public static final String KICK = "KICK";
+    public static final String PRIVMSG = "PRIVMSG";
 
 
 
@@ -62,15 +67,21 @@ public class IncomingMessageHandler {
                 break;
             case TOPIC:
                 System.out.println("Message header TOPIC");
+                break;
             case NAMES:
                 System.out.println("Message header NAMES");
+                break;
             case LIST:
                 System.out.println("Message header LIST");
                 break;
             case INVITE:
                 System.out.println("Message header INVITE");
+                break;
             case KICK:
                 System.out.println("Message header KICK");
+                break;
+            case PRIVMSG:
+                break;
             default: System.out.println("Message header not recognised");
         }
     }
@@ -87,15 +98,31 @@ public class IncomingMessageHandler {
         String newRealName = messageInParts[1].replace("\n", "");
         System.out.println("Setting realname to: " + newRealName);
         sender.setRealName(newRealName);
-
+        handleWelcomeMessage(key);
 
     }
 
     public static void handleNICKcommand(String[] message, SelectionKey key){
+
         User sender = (User)key.attachment();
         String newNickname = message[1].replace("\n", "");
+        newNickname = newNickname.replace("\r", "");
         System.out.println("Setting nickname to: " + newNickname);
+        if( sender.getNick() != null ){
+            String returnedMessage = ":" + sender.getNick() + " NICK " + newNickname + "\r\n";
+            System.out.println("returned message: " + returnedMessage);
+            sender.addUnreceivedMessage(returnedMessage);
+        }
         sender.setNick(newNickname);
+        System.out.println("Ustawilem nick na wartosc: " + sender.getNick());
+
+        sender.joinToChannel(OPEN_CHANNEL_NAME);
+
+        String joinChannelMessage = ":" + sender.getNick() + " JOIN #" + OPEN_CHANNEL_NAME + "\r\n";
+        System.out.println("1st message sent:" + joinChannelMessage);
+        sender.addUnreceivedMessage( joinChannelMessage );
+        System.out.println("1st message sent:" + joinChannelMessage);
+        handleWelcomeMessage(key);
     }
 
     public static void handleQUITcommand(String message, SelectionKey key){
@@ -105,6 +132,19 @@ public class IncomingMessageHandler {
     }
 
     public static void handleJOINcommand(String message, SelectionKey key){
+
+    }
+    public static void handleJOINOpenChannelCommand(String message, SelectionKey key){
+
+    }
+    public static void handleWelcomeMessage(SelectionKey key){
+        User sender = (User)key.attachment();
+        if( !sender.welcomed() && (sender.getNick() != null) && (sender.getUsername() != null) ){
+            String welcomeMessage = Serwer.WELCOME_MESSAGE_BASE;
+            welcomeMessage += " " + sender.getNick() + "!" + sender.getUsername() + "@" + Serwer.HOST_NAME + "\r\n";
+            sender.addUnreceivedMessage(welcomeMessage);
+            sender.setWelcomed();
+        }
 
     }
 }

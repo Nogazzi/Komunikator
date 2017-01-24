@@ -1,6 +1,9 @@
 package Serwer.Users;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
 import java.util.*;
 
 /**
@@ -13,14 +16,15 @@ public class User {
     private String username;
     private String realName;
     private String portNumber;
-    private Queue<String> unreceivedMessageQueue;
+    private ArrayList<String> unreceivedMessageQueue;
     private ByteBuffer messageBuffer = ByteBuffer.allocate(BUFFER_SIZE);
     private HashSet<String> channelsList;
+    boolean welcomed = false;
 
     public User(){
         //unreceivedMessageQueue = new Queue<String>();
         channelsList = new HashSet<String>();
-
+        unreceivedMessageQueue = new ArrayList<String>();
     }
 
     public void setNick(String nick){
@@ -57,9 +61,9 @@ public class User {
     public void addUnreceivedMessage(String message){
         this.unreceivedMessageQueue.add(message);
     }
-    public String getUnreceivedMessage(){
+    /*public String getUnreceivedMessage(){
         return this.unreceivedMessageQueue.element();
-    }
+    }*/
     public void joinToChannel(String channelName){
         this.channelsList.add(channelName);
     }
@@ -77,5 +81,39 @@ public class User {
     public String toString() {
         String string = "Nickname: " + nick + ", IP: " + ipAddress + ", port No: " + portNumber;
         return string;
+    }
+    public boolean remainMessage(){
+        if( unreceivedMessageQueue.size() > 0 ){
+            return true;
+        }
+        return false;
+    }
+    public String getRemainedMessage(){
+        String message = unreceivedMessageQueue.get(0);
+        unreceivedMessageQueue.remove(0);
+        return message;
+
+    }
+
+    public static void sendMessage(SelectionKey key, String messageToSend){
+        User keyUser = (User)key.attachment();
+        SocketChannel channel = (SocketChannel)key.channel();
+        ByteBuffer messageBuffer = ByteBuffer.wrap(messageToSend.getBytes());
+        try {
+            channel.write(messageBuffer);
+            messageBuffer.rewind();
+            StringBuilder sb = new StringBuilder();
+            String message = new String(messageBuffer.array());
+            System.out.println("Message: \"" + message + "\" sent");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+    public boolean welcomed(){
+        return this.welcomed;
+    }
+    public void setWelcomed(){
+        this.welcomed = true;
     }
 }
