@@ -108,7 +108,7 @@ public class IncomingMessageHandler {
         System.out.println("Kanał nadawczy wiadomości: " + channelName);
         channelName = channelName.replace("#", "");
         bodyMessage = PRIVMSG + " " + user.getNick() + " :" + bodyMessage + "\r\n";
-        serwerInstance.getIRCChannel(channelName).sendMessageToAllUsersOnChannel(bodyMessage);
+        serwerInstance.getIRCChannel(channelName).sendMessageToAllUsersOnChannel(message);
 
     }
 
@@ -155,7 +155,12 @@ public class IncomingMessageHandler {
     }
 
     public void handleJOINcommand(String message, SelectionKey key){
-
+        User user = (User)key.attachment();
+        String[] str = message.split(" ");
+        String channelName = str[1].replace("#", "");
+        System.out.println("Uzytkownik " + user.getNick() + " chce dolaczyc do kanalu " + channelName);
+        serwerInstance.addUserToChannel(user, channelName);
+        user.addUnreceivedMessage(":" + user.getNick() + " JOIN #" + channelName + "\r\n");
     }
     public void handleJOINOpenChannelCommand(String message, SelectionKey key){
 
@@ -200,7 +205,10 @@ public class IncomingMessageHandler {
         Iterator it = channelsList.entrySet().iterator();
         while( it.hasNext() ){
             HashMap.Entry pair = (HashMap.Entry)it.next();
-            channels += pair.getKey().toString() + " ";
+            channels += pair.getKey().toString();
+            if( it.hasNext() ){
+                channels += ", ";
+            }
             //it.remove();
         }
         return channels;

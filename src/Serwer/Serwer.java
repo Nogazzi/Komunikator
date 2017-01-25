@@ -67,6 +67,8 @@ public class Serwer {
             System.out.println("Users list created, contains: " + users.size() + " users");
             System.out.println("Server started on port: " + serverPortNumber);
 
+            addSomeChannels();
+
             startWorking();
         } catch (IOException e) {
             e.printStackTrace();
@@ -218,13 +220,24 @@ public class Serwer {
     }
     public void addUserToChannel(User user, String channel){
         if( channels.containsKey( channel )){
+            channels.get( channel ).addUser(user);
             user.joinToChannel(channel);
         }else{
-            throw new NullPointerException();
+            channels.put(channel, new IRCChannel(channel));
         }
     }
 
     private void setUpOpenChannel(){
         this.channels.put(OPEN_CHANNEL_NAME, new IRCChannel(OPEN_CHANNEL_NAME));
+    }
+
+    private void addSomeChannels(){
+        IRCChannel chan1 = new IRCChannel("pogaduchy");
+        IRCChannel chan2 = new IRCChannel("informatycy");
+        IRCChannel chan3 = new IRCChannel("erotyczne");
+
+        channels.put(chan1.getChannelName(), chan1);
+        channels.put(chan2.getChannelName(), chan2);
+        channels.put(chan3.getChannelName(), chan3);
     }
 }
