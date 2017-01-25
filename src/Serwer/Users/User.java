@@ -116,4 +116,10 @@ public class User {
     public void setWelcomed(){
         this.welcomed = true;
     }
+    public boolean verified(){
+        if( (this.username != null) && (this.nick != null) ){
+            return true;
+        }
+        return false;
+    }
 }

@@ -1,10 +1,13 @@
 package Serwer;
 
+import Serwer.Channels.IRCChannel;
 import Serwer.Users.User;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.util.HashMap;
+import java.util.Iterator;
 
 import static Serwer.Serwer.OPEN_CHANNEL_NAME;
 
@@ -12,6 +15,8 @@ import static Serwer.Serwer.OPEN_CHANNEL_NAME;
  * Created by Nogaz on 13.01.2017.
  */
 public class IncomingMessageHandler {
+
+    Serwer serwerInstance;
 
     public static final String USER = "USER";
     public static final String NICK = "NICK";
@@ -29,9 +34,12 @@ public class IncomingMessageHandler {
     public static final String PRIVMSG = "PRIVMSG";
 
 
+    public IncomingMessageHandler(){
+        serwerInstance = Serwer.getSerwerInstance();
+    }
 
 
-    public static void handleIncomingMessage(String message, SelectionKey key){
+    public void recognizeIncomingMessage(String message, SelectionKey key){
         System.out.println("Full received message:\t" + message);
 
         String[] messageInParts = message.split(" ");
@@ -63,6 +71,7 @@ public class IncomingMessageHandler {
                 System.out.println("Message header PART");
                 break;
             case MODE:
+                handleMODEcommand(message, key);
                 System.out.println("Message header MODE");
                 break;
             case TOPIC:
@@ -81,12 +90,29 @@ public class IncomingMessageHandler {
                 System.out.println("Message header KICK");
                 break;
             case PRIVMSG:
+                System.out.println("Message header PRIVMSG");
+                handlePRIVMSGcommand(message, key);
                 break;
             default: System.out.println("Message header not recognised");
         }
+        handleVerified(key);
     }
 
-    public static void handleUSERcommand(String message, SelectionKey key){
+    public void handlePRIVMSGcommand(String message, SelectionKey key){
+        User user = (User)key.attachment();
+        String[] mainBody = message.split(":");
+        String bodyMessage = mainBody[1];
+        String[] headMessage = mainBody[0].split(" ");
+        String channelName = headMessage[1];
+        System.out.println("Tresc nadesłanej wiadomosci: " + bodyMessage);
+        System.out.println("Kanał nadawczy wiadomości: " + channelName);
+        channelName = channelName.replace("#", "");
+        bodyMessage = PRIVMSG + " " + user.getNick() + " :" + bodyMessage + "\r\n";
+        serwerInstance.getIRCChannel(channelName).sendMessageToAllUsersOnChannel(bodyMessage);
+
+    }
+
+    public void handleUSERcommand(String message, SelectionKey key){
         String[] messageInParts = message.split(" ");
         String newUsername = messageInParts[1].replace("\n", "");
         User sender = (User)key.attachment();
@@ -98,11 +124,10 @@ public class IncomingMessageHandler {
         String newRealName = messageInParts[1].replace("\n", "");
         System.out.println("Setting realname to: " + newRealName);
         sender.setRealName(newRealName);
-        handleWelcomeMessage(key);
 
     }
 
-    public static void handleNICKcommand(String[] message, SelectionKey key){
+    public void handleNICKcommand(String[] message, SelectionKey key){
 
         User sender = (User)key.attachment();
         String newNickname = message[1].replace("\n", "");
@@ -116,35 +141,72 @@ public class IncomingMessageHandler {
         sender.setNick(newNickname);
         System.out.println("Ustawilem nick na wartosc: " + sender.getNick());
 
-        sender.joinToChannel(OPEN_CHANNEL_NAME);
 
-        String joinChannelMessage = ":" + sender.getNick() + " JOIN #" + OPEN_CHANNEL_NAME + "\r\n";
-        System.out.println("1st message sent:" + joinChannelMessage);
-        sender.addUnreceivedMessage( joinChannelMessage );
-        System.out.println("1st message sent:" + joinChannelMessage);
-        handleWelcomeMessage(key);
+    }
+    public void handleMODEcommand(String message, SelectionKey key){
+        User user = (User) key.attachment();
+
+        user.addUnreceivedMessage("ERR_NEEDMOREPARAMS" + "\r\n");
     }
 
-    public static void handleQUITcommand(String message, SelectionKey key){
+    public void handleQUITcommand(String message, SelectionKey key){
         User sender = (User)key.attachment();
-        //usunac usera z listy userów
-        //usunac usera z listy kanalow -> key.cancel()
+        key.cancel();
     }
 
-    public static void handleJOINcommand(String message, SelectionKey key){
+    public void handleJOINcommand(String message, SelectionKey key){
 
     }
-    public static void handleJOINOpenChannelCommand(String message, SelectionKey key){
+    public void handleJOINOpenChannelCommand(String message, SelectionKey key){
 
     }
-    public static void handleWelcomeMessage(SelectionKey key){
-        User sender = (User)key.attachment();
-        if( !sender.welcomed() && (sender.getNick() != null) && (sender.getUsername() != null) ){
+    public void handleVerified(SelectionKey key){
+        //if verified 1st time
+        //  - send welcome message
+        //  - join to openChannel
+        //  - send channels list
+        //  - send users list
+        User user = (User)key.attachment();
+        if( user.verified() && !user.welcomed() ){
+
+            //send welcome message
             String welcomeMessage = Serwer.WELCOME_MESSAGE_BASE;
-            welcomeMessage += " " + sender.getNick() + "!" + sender.getUsername() + "@" + Serwer.HOST_NAME + "\r\n";
-            sender.addUnreceivedMessage(welcomeMessage);
-            sender.setWelcomed();
+            welcomeMessage += " " + user.getNick() + "!" + user.getUsername() + "@" + Serwer.HOST_NAME + "\r\n";
+            user.addUnreceivedMessage(welcomeMessage);
+            //join to open channel
+            user.joinToChannel(OPEN_CHANNEL_NAME);
+            serwerInstance.getIRCChannel(OPEN_CHANNEL_NAME).addUser(user);
+            String joinChannelMessage = ":" + user.getNick() + " JOIN #" + OPEN_CHANNEL_NAME + "\r\n";
+            user.addUnreceivedMessage( joinChannelMessage );
+            //send channels list
+            String channelsList = "LIST " + getChannelsList() + "\r\n";
+            user.addUnreceivedMessage(channelsList);
+            //send users list
+            String usersListMessage = "NAMES " + getUsersList() + "\r\n";
+            user.addUnreceivedMessage(usersListMessage);
+            user.setWelcomed();
         }
+    }
+    public String getUsersList(){
+        String users = "";
+        for (User user: serwerInstance.getUsers() ) {
+            users += user.getNick() + " ";
+        }
+        return users;
+    }
+    public String getChannelsList(){
+        String channels = "";
+        HashMap<String, IRCChannel> channelsList = serwerInstance.getChannels();
+        Iterator it = channelsList.entrySet().iterator();
+        while( it.hasNext() ){
+            HashMap.Entry pair = (HashMap.Entry)it.next();
+            channels += pair.getKey().toString() + " ";
+            //it.remove();
+        }
+        return channels;
+    }
+    public void sendToEveryOneOnChannel(String message, IRCChannel channel){
 
     }
+
 }

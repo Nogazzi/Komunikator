@@ -1,26 +1,22 @@
 package Serwer;
 
 
+import Serwer.Channels.IRCChannel;
 import Serwer.Users.User;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Created by Nogaz on 24.11.2016.
  */
 public class Serwer {
+
+    private static Serwer serwerInstance = null;
 
     private String adresIPSerwera = "192.168.1.18";
     private String adresLocalhost = "127.0.0.1";
@@ -28,8 +24,6 @@ public class Serwer {
 
     BufferedReader reader;
     ServerSocketChannel serverSocketChannel;
-
-    ArrayList outputStreams;
 
     Selector channelSelector;
 
@@ -39,21 +33,26 @@ public class Serwer {
     private ByteBuffer WelcomeMessageBuffer;
     public static final String HOST_NAME = "PituPitu";
 
+    IncomingMessageHandler incomingMessageHandler;
+
 
     private ByteBuffer messageBuffer = ByteBuffer.allocate(BUFFER_SIZE);
 
     private HashSet<User> users;
-    private HashSet<String> channels;
+    private HashMap<String, IRCChannel> channels;
 
+    private Serwer(){
 
-    public static void main(String[] args){
-
-        new Serwer().setUpServer();
+    }
+    public synchronized static Serwer getSerwerInstance(){
+        if( serwerInstance == null ){
+            serwerInstance = new Serwer();
+        }
+        return serwerInstance;
     }
 
-
-    public void setUpServer(){
-        outputStreams = new ArrayList();
+    public void runSerwer(){
+        incomingMessageHandler = new IncomingMessageHandler();
 
         try {
             serverSocketChannel = ServerSocketChannel.open();
@@ -63,52 +62,15 @@ public class Serwer {
             serverSocketChannel.register(channelSelector, SelectionKey.OP_ACCEPT);
 
             users = new HashSet<User>();
-            channels = new HashSet<String>();
+            channels = new HashMap<String, IRCChannel>();
             setUpOpenChannel();
             System.out.println("Users list created, contains: " + users.size() + " users");
             System.out.println("Server started on port: " + serverPortNumber);
-/*
-            SocketChannel openChannel = SocketChannel.open();
-            openChannel.connect(new InetSocketAddress(adresIPSerwera, serverPortNumber));
-            openChannel.configureBlocking(false);
-            User newUser = new User();
-            newUser.setNick("ADMIN");
-            newUser.setIpAddress(adresIPSerwera + ":" + serverPortNumber);
-            users.add(newUser);
-            SelectionKey key = openChannel.register(channelSelector, SelectionKey.OP_READ);
-*/
-            startWorking();
 
-            serverSocketChannel.close();
+            startWorking();
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-    }
-
-
-    public void addOpenChatChannel() throws IOException {
-        SocketChannel newChannel = SocketChannel.open();
-
-        newChannel.connect(new InetSocketAddress(adresIPSerwera,serverPortNumber));
-
-        newChannel.configureBlocking(false);
-
-
-        SelectionKey key = newChannel.register(channelSelector, SelectionKey.OP_READ );
-
-    }
-    public void addConversationChannel(String user1, String user2) throws IOException {
-        SocketChannel newChannel = SocketChannel.open();
-
-        newChannel.connect(new InetSocketAddress(adresIPSerwera,serverPortNumber));
-
-        newChannel.configureBlocking(false);
-
-
-        SelectionKey key = newChannel.register(channelSelector, SelectionKey.OP_READ);
-        key.attach(new PrivateChatData(user1, user2));
-
     }
 
     public Channel getChannel(SelectionKey key){
@@ -117,16 +79,16 @@ public class Serwer {
     public Selector getSelector(SelectionKey key){
         return key.selector();
     }
-    public PrivateChatData getChatData(SelectionKey key){
-        return (PrivateChatData)key.attachment();
+    public IRCChannel getIRCChannel(String name){
+        return channels.get(name);
     }
-
+    public HashSet<User> getUsers(){
+        return this.users;
+    }
+    public HashMap<String, IRCChannel> getChannels(){
+        return this.channels;
+    }
     public void startWorking() throws IOException {
-
-
-
-
-
         boolean interrupted = false;
         while(!interrupted){
 
@@ -149,11 +111,9 @@ public class Serwer {
                     handleWrite(key);
                 }
                 keyIterator.remove();
-
             }
-
-
         }
+        serverSocketChannel.close();
     }
 
 
@@ -169,18 +129,12 @@ public class Serwer {
         users.add(newUser);
         setUserToOpenChannel(newUser);
         System.out.println("\nAccepted connection from " + address);
-        //System.out.println("User: " + newUser.getNick() + " added to Users list");
         System.out.println("Users list now contains " + users.size() + " users");
 
         //configure channel and wire with user
         socketChannel.configureBlocking(false);
         socketChannel.register(channelSelector, SelectionKey.OP_READ | SelectionKey.OP_WRITE, newUser);
 
-        //send welcome message and confirm connection
-
-        //socketChannel.write(WelcomeMessageBuffer);
-
-        //System.out.println("Accepted connection from: " + newUser.toString());
     }
     public void handleConnect(SelectionKey key){
     }
@@ -209,11 +163,7 @@ public class Serwer {
         }else{
             message = stringBuilder.toString();
         }
-        IncomingMessageHandler.handleIncomingMessage(message, key);
-        //System.out.println("mM:" + message);
-        //sendBroadCast(message);
-
-        //jesli odczytana wiadomosc ma byc przeslana do innego uzytkownika to zapisujemy ja do kolejki wiadomosci odbiorcy
+        incomingMessageHandler.recognizeIncomingMessage(message, key);
 
     }
 
@@ -241,8 +191,6 @@ public class Serwer {
             System.out.println("ilosc wolnego miejsca w buforze wysylania: " + messageBuffer.remaining() );
             try {
                 channel.write(messageBuffer);
-                //messageBuffer.rewind();
-                StringBuilder sb = new StringBuilder();
                 String message = new String(messageBuffer.array());
                 System.out.println("Message: \"" + message + "\" sent");
                 messageBuffer.clear();
@@ -269,7 +217,7 @@ public class Serwer {
         key.cancel();
     }
     public void addUserToChannel(User user, String channel){
-        if( channels.contains( channel )){
+        if( channels.containsKey( channel )){
             user.joinToChannel(channel);
         }else{
             throw new NullPointerException();
@@ -277,6 +225,6 @@ public class Serwer {
     }
 
     private void setUpOpenChannel(){
-        this.channels.add(OPEN_CHANNEL_NAME);
+        this.channels.put(OPEN_CHANNEL_NAME, new IRCChannel(OPEN_CHANNEL_NAME));
     }
 }
