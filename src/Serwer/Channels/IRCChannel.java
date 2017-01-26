@@ -29,8 +29,10 @@ public class IRCChannel {
         return false;
     }
     public void sendMessageToAllUsersOnChannel(String message){
-        for (User user: users ) {
-            user.addUnreceivedMessage(message);
+        if( !users.isEmpty() ) {
+            for (User user : users) {
+                user.addUnreceivedMessage(message);
+            }
         }
     }
     public void sendMessageToAllUsersOnChannelExceptSender(String message, String senderName){

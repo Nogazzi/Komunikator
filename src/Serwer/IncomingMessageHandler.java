@@ -32,6 +32,7 @@ public class IncomingMessageHandler {
     public static final String INVITE = "INVITE";
     public static final String KICK = "KICK";
     public static final String PRIVMSG = "PRIVMSG";
+    public static final String CAP = "CAP";
 
 
     public IncomingMessageHandler(){
@@ -70,6 +71,7 @@ public class IncomingMessageHandler {
                 break;
             case PART:
                 System.out.println("Message header PART");
+                handlePARTcommand(messageInParts, key);
                 break;
             case MODE:
                 handleMODEcommand(message, key);
@@ -83,6 +85,7 @@ public class IncomingMessageHandler {
                 break;
             case LIST:
                 System.out.println("Message header LIST");
+                handleLISTcommand(message, key);
                 break;
             case INVITE:
                 System.out.println("Message header INVITE");
@@ -94,9 +97,32 @@ public class IncomingMessageHandler {
                 System.out.println("Message header PRIVMSG");
                 handlePRIVMSGcommand(message, key);
                 break;
+            case CAP:
+                System.out.println("Message header CAP");
+                handleCAPcommand(message, key);
+                break;
             default: System.out.println("Message header not recognised");
         }
         handleVerified(key);
+    }
+
+    public void handlePARTcommand(String[] message, SelectionKey key) {
+        User user = (User)key.attachment();
+        String[] channels = message[1].split(",");
+        HashMap<String, IRCChannel> channelsList = serwerInstance.getChannels();
+
+        for (String channel: channels) {
+            channel = channel.replace("#", "");
+            IRCChannel chan = channelsList.get(channel);
+            chan.sendMessageToAllUsersOnChannel(":" + user.getNick() + " PART #" + channel);
+            chan.removeUser(user);
+            user.leaveChannel(channel);
+
+        }
+    }
+
+    public void handleLISTcommand(String message, SelectionKey key) {
+
     }
 
     public void handlePRIVMSGcommand(String message, SelectionKey key){
@@ -107,11 +133,6 @@ public class IncomingMessageHandler {
         String channelName = headMessage[1];
         System.out.println("Tresc nadesłanej wiadomosci: " + bodyMessage);
         System.out.println("Kanał nadawczy wiadomości: " + channelName);
-        if( true ){
-            //send on priv direct to user
-        }else{
-            //send on channel
-        }
 
         bodyMessage = ":<"+user.getNick() + "> PRIVMSG " + channelName + /*"Nogaz " +*/  " :" + bodyMessage + "\r\n";
         //serwerInstance.getIRCChannel(channelName.replace("#", "")).sendMessageToAllUsersOnChannel(bodyMessage);
@@ -176,9 +197,13 @@ public class IncomingMessageHandler {
         serwerInstance.addUserToChannel(user, channelName);
         user.addUnreceivedMessage(":" + user.getNick() + " JOIN #" + channelName + "\r\n");
     }
-    public void handleJOINOpenChannelCommand(String message, SelectionKey key){
+    public void handleCAPcommand(String message, SelectionKey key){
+        User user = (User)key.attachment();
+        String returnMessage = "CAP END\r\n";
 
+        user.addUnreceivedMessage(returnMessage);
     }
+
     public void handleVerified(SelectionKey key){
         //if verified 1st time
         //  - send welcome message
@@ -198,7 +223,9 @@ public class IncomingMessageHandler {
             String joinChannelMessage = ":" + user.getNick() + " JOIN #" + OPEN_CHANNEL_NAME + "\r\n";
             user.addUnreceivedMessage( joinChannelMessage );
             //send channels list
-            String channelsList = user.getNick() +  " LIST " + getChannelsList() + "\r\n";
+            byte bajt = 0x02;
+            String packet = Byte.toString(bajt);
+            String channelsList = ":LIST OK " + getChannelsList() + " :" + user.getNick() + "\r\n";
             user.addUnreceivedMessage(channelsList);
             //send users list
             String usersListMessage = "NAMES " + getUsersList() + "\r\n";
@@ -221,7 +248,7 @@ public class IncomingMessageHandler {
             HashMap.Entry pair = (HashMap.Entry)it.next();
             channels += "#" + pair.getKey().toString();
             if( it.hasNext() ){
-                channels += ", ";
+                channels += ",";
             }
             //it.remove();
         }
