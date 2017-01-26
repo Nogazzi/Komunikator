@@ -194,7 +194,7 @@ public class Serwer {
             try {
                 channel.write(messageBuffer);
                 String message = new String(messageBuffer.array());
-                System.out.println("Message: \"" + message + "\" sent");
+                System.out.println("Message:\n" + message);
                 messageBuffer.clear();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -213,9 +213,19 @@ public class Serwer {
     }
     public void setUserToOpenChannel(User user){
         user.joinToChannel(OPEN_CHANNEL_NAME);
+        addUserToChannel(user, OPEN_CHANNEL_NAME);
     }
     public void quitUser(SelectionKey key){
-        users.remove((User)key.attachment());
+        User user = (User) key.attachment();
+        HashMap<String, IRCChannel> channelsList = serwerInstance.getChannels();
+        Iterator it = channelsList.entrySet().iterator();
+        while( it.hasNext() ){
+            HashMap.Entry pair = (HashMap.Entry)it.next();
+            IRCChannel channel =  (IRCChannel)pair.getValue();
+            if( channel.hasUser(user) ){
+                channel.removeUser(user);
+            }
+        }
         key.cancel();
     }
     public void addUserToChannel(User user, String channel){

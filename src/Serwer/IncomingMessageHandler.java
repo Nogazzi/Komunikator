@@ -106,9 +106,9 @@ public class IncomingMessageHandler {
         String channelName = headMessage[1];
         System.out.println("Tresc nadesłanej wiadomosci: " + bodyMessage);
         System.out.println("Kanał nadawczy wiadomości: " + channelName);
-        channelName = channelName.replace("#", "");
-        bodyMessage = PRIVMSG + " " + user.getNick() + " :" + bodyMessage + "\r\n";
-        serwerInstance.getIRCChannel(channelName).sendMessageToAllUsersOnChannel(message);
+
+        bodyMessage = "MSG " + channelName + " " + user.getNick() + " :" + bodyMessage + "\r\n";
+        serwerInstance.getIRCChannel(channelName.replace("#", "")).sendMessageToAllUsersOnChannel(bodyMessage);
 
     }
 
@@ -150,8 +150,7 @@ public class IncomingMessageHandler {
     }
 
     public void handleQUITcommand(String message, SelectionKey key){
-        User sender = (User)key.attachment();
-        key.cancel();
+        serwerInstance.quitUser(key);
     }
 
     public void handleJOINcommand(String message, SelectionKey key){
@@ -184,7 +183,7 @@ public class IncomingMessageHandler {
             String joinChannelMessage = ":" + user.getNick() + " JOIN #" + OPEN_CHANNEL_NAME + "\r\n";
             user.addUnreceivedMessage( joinChannelMessage );
             //send channels list
-            String channelsList = "LIST " + getChannelsList() + "\r\n";
+            String channelsList = user.getNick() +  " LIST " + getChannelsList() + "\r\n";
             user.addUnreceivedMessage(channelsList);
             //send users list
             String usersListMessage = "NAMES " + getUsersList() + "\r\n";
@@ -205,7 +204,7 @@ public class IncomingMessageHandler {
         Iterator it = channelsList.entrySet().iterator();
         while( it.hasNext() ){
             HashMap.Entry pair = (HashMap.Entry)it.next();
-            channels += pair.getKey().toString();
+            channels += "#" + pair.getKey().toString();
             if( it.hasNext() ){
                 channels += ", ";
             }

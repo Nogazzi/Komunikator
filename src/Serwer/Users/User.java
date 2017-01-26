@@ -76,6 +76,9 @@ public class User {
         }
         return false;
     }
+    public void leaveChannel(String channelName){
+        this.channelsList.remove(channelName);
+    }
 
     @Override
     public String toString() {

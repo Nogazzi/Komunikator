@@ -22,6 +22,12 @@ public class IRCChannel {
     public void removeUser(User user){
         this.users.remove(user);
     }
+    public boolean hasUser(User user){
+        if( users.contains(user) ){
+            return true;
+        }
+        return false;
+    }
     public void sendMessageToAllUsersOnChannel(String message){
         for (User user: users ) {
             user.addUnreceivedMessage(message);
