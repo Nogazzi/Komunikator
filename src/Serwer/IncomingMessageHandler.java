@@ -41,7 +41,8 @@ public class IncomingMessageHandler {
 
     public void recognizeIncomingMessage(String message, SelectionKey key){
         System.out.println("Full received message:\t" + message);
-
+        User user = (User) key.attachment();
+        String senderName = user.getNick();
         String[] messageInParts = message.split(" ");
         switch( messageInParts[0].toUpperCase() ){
             case USER:
@@ -106,9 +107,20 @@ public class IncomingMessageHandler {
         String channelName = headMessage[1];
         System.out.println("Tresc nadesłanej wiadomosci: " + bodyMessage);
         System.out.println("Kanał nadawczy wiadomości: " + channelName);
+        if( true ){
+            //send on priv direct to user
+        }else{
+            //send on channel
+        }
 
-        bodyMessage = "MSG " + channelName + " " + user.getNick() + " :" + bodyMessage + "\r\n";
-        serwerInstance.getIRCChannel(channelName.replace("#", "")).sendMessageToAllUsersOnChannel(bodyMessage);
+        bodyMessage = ":<"+user.getNick() + "> PRIVMSG " + channelName + /*"Nogaz " +*/  " :" + bodyMessage + "\r\n";
+        //serwerInstance.getIRCChannel(channelName.replace("#", "")).sendMessageToAllUsersOnChannel(bodyMessage);
+        channelName = channelName.replace("#", "");
+        IRCChannel channel = serwerInstance.getIRCChannel(channelName);
+        channel.sendMessageToAllUsersOnChannelExceptSender(bodyMessage, user.getNick());
+
+    }
+    public void handleMSGcommand(String message, SelectionKey key){
 
     }
 
@@ -157,6 +169,9 @@ public class IncomingMessageHandler {
         User user = (User)key.attachment();
         String[] str = message.split(" ");
         String channelName = str[1].replace("#", "");
+        channelName = channelName.replace("\r", "");
+        channelName = channelName.replace("\n", "");
+        serwerInstance.addNewChannel(channelName);
         System.out.println("Uzytkownik " + user.getNick() + " chce dolaczyc do kanalu " + channelName);
         serwerInstance.addUserToChannel(user, channelName);
         user.addUnreceivedMessage(":" + user.getNick() + " JOIN #" + channelName + "\r\n");

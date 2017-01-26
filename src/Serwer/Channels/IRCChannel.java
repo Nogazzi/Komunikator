@@ -33,6 +33,15 @@ public class IRCChannel {
             user.addUnreceivedMessage(message);
         }
     }
+    public void sendMessageToAllUsersOnChannelExceptSender(String message, String senderName){
+        if( !users.isEmpty() ) {
+            for (User user : users) {
+                if (user.getNick() != senderName) {
+                    user.addUnreceivedMessage(message);
+                }
+            }
+        }
+    }
     public String getChannelName(){
         return this.channelName;
     }

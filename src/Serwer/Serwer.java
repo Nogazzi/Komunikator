@@ -28,7 +28,7 @@ public class Serwer {
     Selector channelSelector;
 
     private final int BUFFER_SIZE = 1024;
-    public final static String WELCOME_MESSAGE_BASE = "Welcome to the Internet Relay Network";
+    public final static String WELCOME_MESSAGE_BASE = "001 Welcome to the Internet Relay Network";
     public final static String OPEN_CHANNEL_NAME = "OpenChannel";
     private ByteBuffer WelcomeMessageBuffer;
     public static final String HOST_NAME = "PituPitu";
@@ -229,11 +229,13 @@ public class Serwer {
         key.cancel();
     }
     public void addUserToChannel(User user, String channel){
-        if( channels.containsKey( channel )){
-            channels.get( channel ).addUser(user);
-            user.joinToChannel(channel);
-        }else{
-            channels.put(channel, new IRCChannel(channel));
+        channels.get( channel ).addUser(user);
+        user.joinToChannel(channel);
+
+    }
+    public void addNewChannel(String channelName){
+        if( !channels.containsKey(channelName) ) {
+            channels.put(channelName, new IRCChannel(channelName));
         }
     }
 
